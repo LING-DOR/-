@@ -235,15 +235,28 @@
                 }
             }
         }
+        
+        // --- MODAL CLOSE FUNCTIONS (FIXED) ---
+        window.closeNameModal = () => toggleModal('name-edit-modal', false);
+        window.closeAddEventModal = () => toggleModal('add-event-modal', false);
+        window.closeAddReasonModal = () => toggleModal('add-reason-modal', false);
+        window.closeGlobalInsightModal = () => toggleModal('global-insight-modal', false);
+        // -------------------------------------
+
 
         // =========================================================================
         // 共享数据路径 (Shared Data Paths)
         // =========================================================================
         let SHARED_UID = 'shared-gold-tracker-placeholder'; 
         
-        const getReasonsCollection = () => collection(db, `artifacts/${appId}/users/${SHARED_UID}/data/reasons`);
-        const getEventsCollection = () => collection(db, `artifacts/${appId}/users/${SHARED_UID}/data/events`);
-        const getProfileDoc = () => doc(db, `artifacts/${appId}/users/${SHARED_UID}/data/settings/profile`);
+        // Data path functions now use the globally resolved SHARED_UID
+        const getReasonsCollection = () => collection(db, `artifacts/${appId}/users/${SHARED_UID}/reasons`);
+        const getEventsCollection = () => collection(db, `artifacts/${appId}/users/${SHARED_UID}/events`);
+        const getProfileDoc = () => doc(db, `artifacts/${appId}/users/${SHARED_UID}/settings/profile`);
+        
+        // Shared UID document path (MUST be 4 segments, pointing to a document)
+        const getSharedUidDoc = () => doc(db, `artifacts/${appId}/settings/shared_uid`);
+
         // =========================================================================
 
 
@@ -448,8 +461,8 @@
                     
                     toggleModal('auth-modal', false); 
                     
-                    const sharedRef = doc(db, `artifacts/${appId}/settings/shared_uid`);
-                    
+                    const sharedRef = getSharedUidDoc(); // Use the document getter
+
                     if (SHARED_UID === 'shared-gold-tracker-placeholder') {
                         // Check Firestore for a fixed shared UID record
                         try {
@@ -603,7 +616,7 @@
             if (!femaleName || !maleName || !appTitle) return showMessage('请填写完整信息。', true);
             try {
                 await setDoc(getProfileDoc(), { femaleName, maleName, appTitle }, { merge: true }); 
-                closeNameModal();
+                window.closeNameModal(); // Use window.closeNameModal
                 showMessage('设置已更新！'); 
             } catch (error) { showMessage('保存失败。', true); }
         };
@@ -630,7 +643,6 @@
                     await addDoc(getReasonsCollection(), reasonData);
                     if (isReturnToEvent) {
                         showMessage(`事由 "${name}" 添加成功！`, false, 1500, () => {
-                            isReturnToEvent = false;
                             window.openAddEventModal();
                         });
                     } else {
@@ -638,7 +650,7 @@
                     }
                 }
                 form.reset();
-                closeAddReasonModal();
+                window.closeAddReasonModal(); // Use window.closeAddReasonModal
 
             } catch (error) { showMessage('保存失败。', true); }
         };
@@ -700,7 +712,7 @@
                     showMessage(`太可恶了！本次竟存入 ${goldAmount.toFixed(1)} 克 😠`);
                 }
                 form.reset();
-                closeAddEventModal();
+                window.closeAddEventModal(); // Use window.closeAddEventModal
             } catch (error) { showMessage('保存失败。', true); }
         };
         
@@ -726,6 +738,102 @@
             renderApp();
             window.scrollTo(0, 0); 
         };
+        
+        // --- MODAL OPEN FUNCTIONS (FIXED) ---
+        window.openNameModal = () => {
+            const femaleInput = document.getElementById('female-name-input');
+            const maleInput = document.getElementById('male-name-input');
+            const titleInput = document.getElementById('app-title-input'); 
+
+            if (femaleInput && maleInput && titleInput) {
+                femaleInput.value = currentProfile.femaleName || '';
+                maleInput.value = currentProfile.maleName || '';
+                titleInput.value = currentProfile.appTitle || ''; 
+            }
+            toggleModal('name-edit-modal', true);
+        };
+        
+        window.openAddEventModal = (eventId = null) => {
+            if (!eventId && currentReasons.length === 0) {
+                showMessage('🥺 还没有任何事由！请先去添加一个吧...', false, 2000, () => {
+                    isReturnToEvent = true; 
+                    window.openAddReasonModal(); 
+                });
+                return;
+            }
+            
+            const selectEl = document.getElementById('reason-select');
+            selectEl.innerHTML = '<option value="" disabled selected>-- 请选择一个事由 --</option>';
+            currentReasons.forEach(r => {
+                selectEl.innerHTML += `<option value="${r.id}">${r.name} (单次上限: ${r.maxGold}g)</option>`;
+            });
+            
+            if(datePickerInstance) datePickerInstance.destroy();
+            datePickerInstance = flatpickr("#event-date-input", {
+                locale: "zh",
+                dateFormat: "Y-m-d",
+                defaultDate: "today",
+                disableMobile: "true", 
+                theme: "light"
+            });
+
+            if (eventId) {
+                const event = currentEvents.find(e => e.id === eventId);
+                if (!event) { showMessage('事件未找到。', true); return; }
+        
+                document.getElementById('event-modal-title').textContent = `✏️ 编辑事件`;
+                document.getElementById('event-submit-btn').textContent = '保存修改';
+                
+                document.getElementById('event-id-input').value = eventId;
+                document.getElementById('description-input').value = event.description;
+                selectEl.value = event.reasonId; 
+                datePickerInstance.setDate(event.date);
+
+                document.getElementById('edit-reason-name-display').textContent = event.reasonName;
+                document.getElementById('edit-gold-amount-display').textContent = event.goldAmount.toFixed(1);
+                
+                document.getElementById('event-edit-display').classList.remove('hidden');
+
+            } else {
+                document.getElementById('event-modal-title').textContent = '✍️ 记录新的事件';
+                document.getElementById('event-submit-btn').textContent = '添加事件'; 
+                document.getElementById('add-event-form').reset();
+                document.getElementById('event-id-input').value = ''; 
+                
+                document.getElementById('event-edit-display').classList.add('hidden');
+                datePickerInstance.setDate(new Date());
+            }
+            
+            toggleModal('add-event-modal', true);
+        };
+
+        window.openEditEventModal = (eventId) => window.openAddEventModal(eventId);
+
+        window.openAddReasonModal = () => {
+            document.getElementById('reason-modal-title').textContent = '➕ 新增事由';
+            document.getElementById('reason-id-input').value = '';
+            document.getElementById('add-reason-form').reset();
+            toggleModal('add-reason-modal', true);
+        };
+
+        window.openEditReasonModal = (reasonId) => {
+            const reason = currentReasons.find(r => r.id === reasonId);
+            if (!reason) { showMessage('事由未找到。', true); return; }
+
+            document.getElementById('reason-modal-title').textContent = `✏️ 编辑事由: ${reason.name}`;
+            document.getElementById('reason-id-input').value = reasonId;
+            document.getElementById('new-reason-name').value = reason.name;
+            document.getElementById('new-max-gold').value = reason.maxGold;
+            toggleModal('add-reason-modal', true);
+        };
+
+        window.quickAddReason = () => {
+            window.closeAddEventModal();
+            isReturnToEvent = true;
+            window.openAddReasonModal();
+        };
+        // -------------------------------------
+
 
         
         // Render functions remain the same
@@ -935,7 +1043,7 @@
                      appDiv.innerHTML = `
                         <div class="max-w-xl mx-auto p-10 text-center mt-20">
                             <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-accent mx-auto mb-6"></div>
-                            <h2 class="text-2xl font-bold text-text-dark animate-pulse">正在同步情侣数据...</h2>
+                            <h2 class="2xl font-bold text-text-dark animate-pulse">正在同步情侣数据...</h2>
                             <p class="text-text-secondary mt-2">请稍候，正在连接共享空间</p>
                         </div>
                     `;
