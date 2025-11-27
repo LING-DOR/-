@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forest Cleanup - 森林大清理</title>
+    <style>
+        /* --- 基础样式 --- */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none; /* 禁止选中文字 */
+            background-color: #1a2a0a; /* 深绿色 */
+        }
+
+        /* --- 游戏容器 (森林地面) --- */
+        #game-container {
+            width: 100%;
+            height: 100%;
+            
+            /* ========================================================== */
+            /* !!! 使用您提供的绝对路径。注意：本地路径需使用 file:/// 协议，且 Windows 路径需将 \ 替换为 / */
+            /* ========================================================== */
+            background-image: url('senlin.png');
+            
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            /* 鼠标光标改为树叶 */
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><text y="20" font-size="20">🍃</text></svg>') 12 12, auto;
+            transition: filter 0.5s ease;
+        }
+
+        /* --- 氛围遮罩 (脏乱/污染效果) --- */
+        #gloom-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* 调整为更自然的森林污染效果，模拟灰暗感 */
+            background: radial-gradient(circle, rgba(60, 80, 40, 0.2) 0%, rgba(30, 40, 20, 0.8) 100%);
+            pointer-events: none; /* 让鼠标穿透遮罩点击物品 */
+            transition: opacity 0.5s ease;
+            z-index: 10;
+        }
+
+        /* --- UI 界面 --- */
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 20;
+            color: #f0f0f0; /* 浅色文字在深色背景上更清晰 */
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+        }
+
+        #timer-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 30px;
+            font-weight: bold;
+            color: #f0f0f0;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+            padding: 5px 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            transition: color 0.5s;
+        }
+
+        h1 { margin: 0; font-size: 24px; }
+        p { margin: 5px 0; font-size: 18px; }
+
+        #progress-bar-container {
+            width: 200px;
+            height: 20px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 10px;
+            margin-top: 10px;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.5);
+        }
+
+        #progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #f1c40f, #28a745); /* 从黄色到森林绿色 */
+            transition: width 0.3s ease;
+        }
+
+        /* --- 污染物品样式 --- */
+        .pollution {
+            position: absolute;
+            font-size: 40px;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+            z-index: 5;
+            filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.3));
+        }
+
+        .pollution:hover {
+            transform: scale(1.1) rotate(10deg);
+        }
+
+        .pollution.cleaning {
+            transform: scale(0) rotate(180deg);
+            opacity: 0;
+        }
+
+        /* 毒蛇会有动画 */
+        .snake {
+            font-size: 35px;
+            z-index: 6;
+            transition: top 1s ease-in-out, left 1s ease-in-out;
+            animation: subtleShake 0.5s infinite alternate;
+        }
+        @keyframes subtleShake {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(5deg); }
+        }
+
+        /* --- 胜利/失败弹窗 --- */
+        #victory-screen, #failure-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s;
+            backdrop-filter: blur(5px);
+        }
+
+        #victory-screen.show, #failure-screen.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            font-size: 24px;
+            background: #28a745; /* 森林绿 */
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+            transition: transform 0.1s, background 0.2s;
+            margin-top: 15px;
+        }
+
+        .btn:hover { background: #218838; transform: scale(1.05); }
+        .btn:active { transform: scale(0.95); }
+
+        /* --- 粒子特效 --- */
+        .sparkle {
+            position: absolute;
+            pointer-events: none;
+            animation: riseAndFade 1s forwards;
+            font-size: 20px;
+            z-index: 8;
+        }
+
+        @keyframes riseAndFade {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.5); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="gloom-overlay"></div>
+        
+        <div id="pollution-layer"></div>
+    </div>
+
+    <div id="ui-layer">
+        <h1>🌳 Forest Cleanup</h1>
+        <p>关卡: <span id="level-display">1</span></p>
+        <div id="progress-bar-container">
+            <div id="progress-bar"></div>
+        </div>
+    </div>
+
+    <div id="timer-display">
+        🕒 <span id="time-left">00</span>
+    </div>
+
+    <div id="victory-screen">
+        <h1 style="color: #28a745; font-size: 50px; margin-bottom: 20px;">🌲 森林焕新! 🌳</h1>
+        <p style="color: #555; margin-bottom: 30px;">恭喜！您在规定时间内完成了清理。</p>
+        <button class="btn" onclick="nextLevel()">下一关</button>
+    </div>
+
+    <div id="failure-screen">
+        <h1 style="color: #c0392b; font-size: 50px; margin-bottom: 20px;">⏰ 时间耗尽! 😥</h1>
+        <p style="color: #555; margin-bottom: 30px;">很遗憾，您没能在规定时间内清理森林。</p>
+        <button class="btn" style="background: #c0392b;" onclick="nextLevel()">重试本关</button>
+    </div>
+
+    <script>
+        // --- 游戏配置 ---
+        // UI安全区域配置 (左上角)
+        const UI_SAFE_MARGIN_X = 280; // UI 宽度 + 边距
+        const UI_SAFE_MARGIN_Y = 180; // UI 高度 + 边距
+
+        // 倒计时配置
+        const BASE_TIME = 30; // 初始时间 (秒)
+        const TIME_DECREMENT = 3; // 每升一级减少的时间 (秒)
+        const MIN_TIME = 10; // 最低时间限制 (秒)
+
+
+        // 污染物品：使用兼容性更好的 Emoji
+        const pollutionTypes = ['🗑️', '🧴', '⭕', '💔', '🚬', '🛍️', '🥫']; 
+        // 动态害虫：毒蛇
+        const pestTypes = ['🐍']; 
+
+        let state = {
+            level: 1,
+            totalItems: 0,
+            cleanedItems: 0,
+            isGameOver: false
+        };
+
+        // 计时器变量
+        let timerId = null;
+        let gameTimer = 0;
+
+        const container = document.getElementById('game-container');
+        const pollutionLayer = document.getElementById('pollution-layer');
+        const gloomOverlay = document.getElementById('gloom-overlay');
+        const progressBar = document.getElementById('progress-bar');
+        const victoryScreen = document.getElementById('victory-screen');
+        const failureScreen = document.getElementById('failure-screen');
+        const levelDisplay = document.getElementById('level-display');
+        const timeLeftDisplay = document.getElementById('time-left');
+
+        // --- 音效 (合成音 - 模拟点击和胜利声) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playPopSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function playWinSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = 'triangle';
+            oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+            oscillator.frequency.setValueAtTime(600, audioCtx.currentTime + 0.1);
+            oscillator.frequency.setValueAtTime(800, audioCtx.currentTime + 0.2);
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 1);
+        }
+
+        // --- 计时器逻辑 ---
+        function calculateTimeLimit(level) {
+            let timeLimit = BASE_TIME - (level - 1) * TIME_DECREMENT;
+            return Math.max(timeLimit, MIN_TIME);
+        }
+
+        function startTimer() {
+            stopTimer(); // 确保旧的计时器被清除
+            gameTimer = calculateTimeLimit(state.level);
+            timeLeftDisplay.innerText = gameTimer;
+            
+            timerId = setInterval(() => {
+                gameTimer--;
+                timeLeftDisplay.innerText = gameTimer;
+
+                // 剩余时间小于等于5秒时变红，增加紧张感
+                if (gameTimer <= 5) {
+                    timeLeftDisplay.parentElement.style.color = '#e74c3c';
+                } else {
+                    timeLeftDisplay.parentElement.style.color = '#f0f0f0';
+                }
+
+                if (gameTimer <= 0) {
+                    stopTimer();
+                    gameOver(false); // 超时失败
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerId !== null) {
+                clearInterval(timerId);
+                timerId = null;
+            }
+        }
+
+        // --- 游戏失败/结束逻辑 ---
+
+        function gameOver(isWin) {
+            state.isGameOver = true;
+            stopTimer(); // 停止计时
+
+            if (isWin) {
+                playWinSound();
+                setTimeout(() => {
+                    victoryScreen.classList.add('show');
+                }, 500);
+            } else {
+                // 失败逻辑
+                setTimeout(() => {
+                    failureScreen.classList.add('show');
+                }, 500);
+            }
+        }
+
+
+        // --- 核心逻辑 ---
+
+        function initLevel() {
+            // 清理并重置界面
+            pollutionLayer.innerHTML = '';
+            failureScreen.classList.remove('show');
+            victoryScreen.classList.remove('show');
+
+            // 重置状态
+            state.cleanedItems = 0;
+            state.isGameOver = false;
+            levelDisplay.innerText = state.level;
+            
+            // 计算难度 (随关卡增加物品数量)
+            const pollutionCount = 10 + (state.level * 3); 
+            const snakeCount = 2 + Math.floor(state.level / 2);
+            state.totalItems = pollutionCount + snakeCount;
+
+            updateAtmosphere();
+
+            // 生成静态污染物品
+            for (let i = 0; i < pollutionCount; i++) {
+                spawnPollution();
+            }
+
+            // 生成毒蛇
+            for (let i = 0; i < snakeCount; i++) {
+                spawnSnake();
+            }
+
+            // !!! 启动计时器 !!!
+            startTimer();
+        }
+        
+        // 限制污染物品的生成位置 (避开 UI)
+        function spawnPollution() {
+            const el = document.createElement('div');
+            el.classList.add('pollution');
+            el.innerText = pollutionTypes[Math.floor(Math.random() * pollutionTypes.length)];
+            
+            let x, y;
+            do {
+                // 随机位置 (预留边距 50px)
+                x = Math.random() * (window.innerWidth - 100) + 50;
+                y = Math.random() * (window.innerHeight - 100) + 50;
+                
+                // 检查是否与左上角UI区域重叠
+            } while (x < UI_SAFE_MARGIN_X && y < UI_SAFE_MARGIN_Y);
+
+            const rot = Math.random() * 360;
+
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            el.style.transform = `rotate(${rot}deg)`;
+
+            // 点击事件
+            el.onclick = (e) => cleanItem(e, el);
+            pollutionLayer.appendChild(el);
+        }
+
+        function spawnSnake() {
+            const el = document.createElement('div');
+            el.classList.add('pollution', 'snake'); 
+            el.innerText = pestTypes[0];
+            
+            // 初始位置
+            moveSnakeRandomly(el, true); // 首次生成时强制避开 UI
+            
+            // 启动随机移动循环
+            const moveInterval = setInterval(() => {
+                if(!el.parentElement || state.isGameOver) { 
+                    clearInterval(moveInterval);
+                    return;
+                }
+                moveSnakeRandomly(el, false); // 移动时不需要强制避开 UI
+            }, 1000 + Math.random() * 2000); // 每1-3秒移动一次
+
+            el.onclick = (e) => cleanItem(e, el);
+            pollutionLayer.appendChild(el);
+        }
+
+        function moveSnakeRandomly(el, initialSpawn = false) {
+            let x, y;
+            do {
+                x = Math.random() * (window.innerWidth - 50);
+                y = Math.random() * (window.innerHeight - 50);
+            } while (initialSpawn && x < UI_SAFE_MARGIN_X && y < UI_SAFE_MARGIN_Y); 
+
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+        }
+
+        function cleanItem(e, element) {
+            if (state.isGameOver) return;
+            
+            // 防止重复点击
+            if (element.classList.contains('cleaning')) return;
+
+            element.classList.add('cleaning');
+            playPopSound();
+            spawnSparkle(e.clientX, e.clientY);
+
+            // 延迟移除 DOM
+            setTimeout(() => {
+                if (element.parentElement) {
+                    element.remove();
+                    state.cleanedItems++;
+                    updateAtmosphere();
+                    checkWin();
+                }
+            }, 200);
+        }
+
+        function spawnSparkle(x, y) {
+            const sparkle = document.createElement('div');
+            sparkle.innerText = '✨';
+            sparkle.classList.add('sparkle');
+            sparkle.style.left = (x - 10) + 'px';
+            sparkle.style.top = (y - 10) + 'px';
+            container.appendChild(sparkle);
+            
+            setTimeout(() => sparkle.remove(), 1000);
+        }
+
+        function updateAtmosphere() {
+            // 计算进度百分比
+            const progress = state.cleanedItems / state.totalItems;
+            
+            // 更新进度条
+            progressBar.style.width = `${progress * 100}%`;
+
+            // 更新阴暗程度 (0% 进度 = 0.8 透明度, 100% 进度 = 0 透明度)
+            const gloomOpacity = 0.8 - (progress * 0.8);
+            gloomOverlay.style.opacity = Math.max(0, gloomOpacity);
+
+            // 背景颜色微调 (从暗到亮，与卡通风格更匹配)
+            container.style.filter = `brightness(${0.7 + (progress * 0.3)})`;
+        }
+
+        function checkWin() {
+            if (state.cleanedItems >= state.totalItems) {
+                gameOver(true); // 胜利
+            }
+        }
+
+        function nextLevel() {
+            if (victoryScreen.classList.contains('show')) {
+                // 如果是胜利，进入下一关
+                state.level++;
+            } else {
+                // 如果是失败重试，关卡不变
+                // state.level = state.level; 
+            }
+            initLevel();
+        }
+
+        // 窗口大小改变时不做复杂处理
+        window.onresize = () => {};
+
+        // --- 启动游戏 ---
+        initLevel();
+
+    </script>
+</body>
+</html>
