@@ -1,0 +1,1717 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>情侣追踪系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Flatpickr 日期选择库 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/zh.js"></script>
+    <!-- 引入 Confetti 撒花库 -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- 引入 Chart.js 图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary-bg': '#F8FAFC', // 更柔和的背景灰
+                        'card-bg': '#FFFFFF',
+                        'accent': '#FFD700',     // Bright Gold
+                        'accent-dark': '#C59100',// Darker Gold for text/hover (Better contrast)
+                        'text-dark': '#111827',  // Gray-900 for sharp text
+                        'text-secondary': '#4B5563', // Gray-600 for secondary
+                        'ai-blue': '#3B82F6',
+                        'danger': '#EF4444',
+                        'danger-hover': '#DC2626',
+                        'chart-blue': '#93C5FD',
+                        'chart-blue-border': '#2563EB'
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                        'gold': '0 4px 14px 0 rgba(255, 215, 0, 0.39)',
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .gold-shadow {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025), 0 0 20px rgba(255, 215, 0, 0.25);
+        }
+        
+        /* Updated Tab Styles - More tactile */
+        .tab-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+            position: relative;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+        .tab-active {
+            color: #111827;
+            background-color: #FFD700;
+            box-shadow: 0 4px 6px -1px rgba(255, 215, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 1px solid #EAB308;
+            transform: translateY(-2px);
+        }
+        .tab-inactive {
+            color: #6B7280;
+            background-color: #F9FAFB;
+            border: 1px solid #E5E7EB;
+        }
+        .tab-inactive:hover {
+            background-color: #FFFFFF;
+            color: #374151;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-color: #D1D5DB;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            background-color: rgba(17, 24, 39, 0.75); 
+            backdrop-filter: blur(4px); 
+            transition: opacity 0.3s ease, visibility 0s 0.3s;
+            z-index: 50;
+        }
+        .modal-hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none !important;
+        }
+        .modal-visible {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.3s ease;
+            pointer-events: auto !important;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px; 
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #d1d5db;
+            border-radius: 4px;
+            border: 2px solid #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: #9ca3af;
+        }
+
+        /* Accordion Animation */
+        .group-content-expanded {
+            max-height: 5000px;
+            opacity: 1;
+            padding: 1.25rem; 
+            transition: max-height 0.5s ease-in-out, opacity 0.4s ease-in-out, padding 0.4s ease;
+            will-change: max-height, opacity;
+            overflow: hidden;
+        }
+        .group-content-collapsed {
+            max-height: 0;
+            opacity: 0;
+            padding: 0 1.25rem;
+            overflow: hidden;
+            transition: max-height 0.4s ease-in-out, opacity 0.3s ease-in-out, padding 0.4s ease;
+            will-change: max-height, opacity;
+        }
+        .arrow-rotated {
+            transform: rotate(-90deg);
+        }
+        .arrow-icon {
+            display: inline-block;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* Unit styling - clearer */
+        .unit-g {
+            font-size: 0.85rem; 
+            font-weight: 700;
+            color: #B45309; 
+            margin-left: 1px;
+            opacity: 0.8;
+            vertical-align: baseline;
+        }
+        
+        .flatpickr-calendar {
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(0,0,0,0.05);
+            z-index: 9999 !important;
+            font-family: 'Inter', sans-serif;
+        }
+        .flatpickr-day.selected {
+            background: #FFD700 !important;
+            border-color: #FFD700 !important;
+            color: #111827 !important;
+            font-weight: 800;
+        }
+        
+        .items-tab-container {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: center;
+            padding: 1.25rem;
+            background-color: white;
+            border-radius: 1.25rem; /* Softer corners */
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(229, 231, 235, 0.5);
+            margin-bottom: 2.5rem;
+        }
+        
+        /* Tooltip style override */
+        .group:hover .group-hover\:opacity-100 {
+            opacity: 1;
+        }
+    </style>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } 
+                 from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, collection, query, orderBy, onSnapshot, 
+            addDoc, doc, setDoc, updateDoc, deleteDoc, getDoc,
+            serverTimestamp, where
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        const appId = 'gold-tracker-for-github';
+        
+        // --- 1. Firebase 配置 ---
+        const firebaseConfig = {
+            apiKey: "",
+            authDomain: "lovegoldtracker.firebaseapp.com",
+            projectId: "lovegoldtracker",
+            storageBucket: "lovegoldtracker.firebasestorage.app",
+            messagingSenderId: "522732534050",
+            appId: "1:522732534050:web:3f4ffdf23a715698a04d7b"
+        };
+
+        // --- 2. Gemini API Key ---
+        const GEMINI_MODEL = 'gemini-2.5-flash-preview-09-2025';
+        const API_KEY = ""; 
+        // ------------------------------------------
+
+        setLogLevel('Debug');
+        let app = null, db = null, auth = null; 
+        let isConfigValid = false;
+
+        const initializeAppConfig = () => {
+             // 检查是否在预览环境中自动注入了配置（通常不需要手动填，但保留逻辑）
+             const envConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
+             
+            if (envConfig.apiKey) {
+                isConfigValid = true;
+                app = initializeApp(envConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+            } else {
+                 document.getElementById('app').innerHTML = `<div class="p-8 text-center text-red-600 bg-red-100 rounded-xl">
+                    ⚠️ **配置缺失**：请确保 Firebase 配置已正确加载。
+                </div>`;
+            }
+        };
+
+        initializeAppConfig();
+        
+        let userId = null;
+        let isAuthReady = false;
+        let isLoggingIn = false;
+        
+        let currentReasons = [];
+        let currentEvents = []; 
+        let currentProfile = {};
+        
+        let trackingItems = [];
+        let activeItemId = null;
+        let isChartVisible = false;
+        
+        let isReturnToEvent = false;
+        let collapsedReasons = new Set();
+        let datePickerInstance = null;
+        let chartInstance = null;
+        
+        function toggleModal(modalId, show) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                if (show) {
+                    modal.classList.remove('modal-hidden');
+                    modal.classList.add('modal-visible');
+                } else {
+                    modal.classList.add('modal-hidden');
+                    modal.classList.remove('modal-visible');
+                }
+            }
+        }
+        
+        window.closeNameModal = () => toggleModal('name-edit-modal', false);
+        window.closeAddEventModal = () => toggleModal('add-event-modal', false);
+        window.closeAddReasonModal = () => toggleModal('add-reason-modal', false);
+        window.closeGlobalInsightModal = () => toggleModal('global-insight-modal', false);
+        window.closeAddItemModal = () => toggleModal('add-item-modal', false);
+
+        // Password visibility toggle
+        window.togglePassword = (inputId) => {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(inputId + '-icon');
+            if (input.type === "password") {
+                input.type = "text";
+                icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />`;
+            } else {
+                input.type = "password";
+                icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />`;
+            }
+        };
+
+        const getReasonsCollection = (uid) => {
+            if (!uid) throw new Error("User ID is required for data access.");
+            return collection(db, `artifacts/${appId}/users/${uid}/reasons`);
+        }
+        const getEventsCollection = (uid) => {
+            if (!uid) throw new Error("User ID is required for data access.");
+            return collection(db, `artifacts/${appId}/users/${uid}/events`);
+        }
+        const getProfileDoc = (uid) => {
+            if (!uid) throw new Error("User ID is required for data access.");
+            return doc(db, `artifacts/${appId}/users/${uid}/settings/profile`);
+        }
+        const getItemsCollection = (uid) => {
+            if (!uid) throw new Error("User ID is required for data access.");
+            return collection(db, `artifacts/${appId}/users/${uid}/trackingItems`);
+        }
+        
+        window.triggerConfetti = () => {
+            if (typeof confetti !== 'undefined') {
+                const count = 200;
+                const defaults = { origin: { y: 0.7 } };
+                function fire(particleRatio, opts) {
+                    confetti(Object.assign({}, defaults, opts, {
+                        particleCount: Math.floor(count * particleRatio),
+                        zIndex: 100,
+                        disableForReducedMotion: true
+                    }));
+                }
+                fire(0.25, { spread: 26, startVelocity: 55, colors: ['#FFD700', '#FFA500'] });
+                fire(0.2, { spread: 60 });
+                fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+                fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+                fire(0.1, { spread: 120, startVelocity: 45 });
+            }
+        };
+
+        window.animateValue = (id, start, end, duration) => {
+            const obj = document.getElementById(id);
+            if (!obj) return;
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                
+                const activeItem = getActiveItem();
+                const decimals = activeItem && activeItem.decimalPlaces !== undefined ? activeItem.decimalPlaces : 0;
+                obj.innerHTML = (progress * (end - start) + start).toFixed(decimals);
+                
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        };
+
+        const calculateGoldAmount = (eventCount, maxGold) => {
+            const nextCount = eventCount + 1;
+            let gold = 0;
+            if (nextCount === 1) gold = 1;
+            else if (nextCount === 2) gold = 2;
+            else if (nextCount === 3) gold = 4;
+            else if (nextCount === 4) gold = 8;
+            else gold = maxGold;
+            return Math.min(gold, maxGold); 
+        };
+        
+        const getActiveItem = () => {
+             if (!trackingItems || trackingItems.length === 0) return null;
+             const item = trackingItems.find(i => i.id === activeItemId);
+             return item || trackingItems[0];
+        };
+
+        const formatGold = (amount, item = null) => {
+            // If item not passed, use active
+            const targetItem = item || getActiveItem();
+            let decimals = 0;
+            let unit = '';
+            let showUnit = false;
+
+            if (targetItem) {
+                decimals = targetItem.decimalPlaces !== undefined ? targetItem.decimalPlaces : 0;
+                unit = targetItem.itemUnit || '';
+                showUnit = targetItem.showUnit !== false;
+            }
+            
+            const formattedAmount = amount.toFixed(decimals);
+            return {
+                amount: formattedAmount,
+                unit: showUnit && unit ? unit : ''
+            };
+        };
+
+        // NEW: Global Insight for ALL items
+        window.getGlobalGeminiInsight = async () => {
+            const PROXY_URL = "https://your-secure-proxy.com/gemini-insight"; 
+            const useProxy = PROXY_URL.startsWith('http') && PROXY_URL !== "https://your-secure-proxy.com/gemini-insight";
+            if (!useProxy && (!API_KEY || API_KEY === "")) {
+                showMessage("情感报告生成失败。请检查是否已配置 Gemini API Key 或部署了代理服务。", true);
+                return;
+            }
+
+            if (!currentEvents || currentEvents.length === 0) {
+                showMessage("还没有任何事件记录，无法生成分析报告哦。", true);
+                return;
+            }
+
+            toggleModal('global-insight-modal', true);
+            const resultEl = document.getElementById('global-insight-content');
+            
+            // Build summary of all items
+            const itemSummaries = trackingItems.map(item => {
+                // Filter events for this item
+                const defaultId = trackingItems[0].id;
+                const events = currentEvents.filter(e => {
+                    if (e.itemId) return e.itemId === item.id;
+                    return item.id === defaultId;
+                });
+                const total = events.reduce((sum, e) => sum + (e.goldAmount || 0), 0);
+                const { amount: formattedTotal, unit: totalUnit } = formatGold(total, item);
+                return `**${item.name}**: 累计 ${formattedTotal}${totalUnit} (${events.length}次事件)`;
+            }).join('\n');
+
+            resultEl.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-12 space-y-6">
+                    <div class="relative">
+                        <div class="animate-spin rounded-full h-14 w-14 border-b-4 border-ai-blue"></div>
+                        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs font-bold text-ai-blue">AI</div>
+                    </div>
+                    <p class="text-ai-blue font-medium text-lg animate-pulse tracking-wide">Gemini 正在分析你们所有的情感财富...</p>
+                </div>
+            `;
+            
+            const recentEvents = currentEvents.slice(-15).map(e => {
+                const item = trackingItems.find(i => i.id === e.itemId) || trackingItems[0];
+                const { amount: formattedEventAmount, unit: eventUnit } = formatGold(e.goldAmount, item);
+                return `[${item.name} | ${e.date.toLocaleDateString()}] "${e.reasonName}": ${formattedEventAmount}${eventUnit}`
+            }).join('; ');
+            
+            const systemPrompt = `你是一位幽默、毒舌但心地善良的情感与财富顾问。这对情侣使用一个"情感追踪系统"来记录男方惹女方生气或通过特定行为"存入"各种物品的过程。
+            请根据以下全维度的财富数据生成一份综合分析报告（HTML格式，不要Markdown代码块）。
+            
+            **当前资产盘点**：
+            ${itemSummaries}
+            
+            **最近15条记录**：
+            ${recentEvents}
+            
+            请包含：
+            1. **全局财富体检**：点评他们整体的资产状况（比如"奶茶富豪"还是"钻石赤贫"）。
+            2. **行为模式分析**：根据最近的记录，指出男方最近主要在哪些方面"犯事"或"立功"。
+            3. **投资与相处建议**：给这对情侣未来的相处建议。
+            语气要轻松、调侃，富有生活气息。`;
+            
+            const finalPayload = {
+                contents: [{ parts: [{ text: "请生成全维度报告。" }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+            let fetchUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`;
+            let headers = { 'Content-Type': 'application/json' };
+            if (useProxy) {
+                fetchUrl = PROXY_URL;
+            }
+
+            try {
+                const response = await fetch(fetchUrl, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(finalPayload)
+                 });
+                
+                const result = await response.json();
+                let text;
+                if (useProxy) {
+                    text = result.text || result.message; 
+                } else {
+                    text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                }
+
+                if (text) {
+                    resultEl.innerHTML = `<div class="prose prose-lg max-w-none text-text-dark leading-loose space-y-4 font-sans">${text}</div>`;
+                } else {
+                    const errorMessage = result.error?.message || "生成失败，请检查网络或API Key是否有效。";
+                    resultEl.innerHTML = `<p class="text-red-500 text-center font-medium p-4 bg-red-50 rounded-lg">${errorMessage}</p>`;
+                }
+            } catch (error) {
+                console.error(error);
+                resultEl.innerHTML = `<p class="text-red-500 text-center font-medium p-4 bg-red-50 rounded-lg">网络错误，无法连接到 AI。</p>`;
+            }
+        };
+
+        const showAuthError = (code) => {
+            let message = "登录/注册失败：";
+            let specificInstruction = '';
+            
+            switch (code) {
+                case 'auth/user-not-found':
+                    message += '该用户不存在。';
+                    specificInstruction = '请检查邮箱是否正确，或切换到“注册”模式。';
+                    break;
+                case 'auth/wrong-password':
+                    message += '密码错误。';
+                    specificInstruction = '请检查密码是否正确。';
+                    break;
+                case 'auth/invalid-credential':
+                    message += '邮箱或密码错误！';
+                    specificInstruction = '如果首次使用，请切换到“注册”模式。'; 
+                    break;
+                case 'auth/email-already-in-use':
+                    message += '此邮箱已被注册，请直接登录。';
+                    specificInstruction = '请切换到“登录”模式。';
+                    break;
+                default:
+                    message += `未知错误 (${code})。请检查网络。`;
+            }
+            showMessage(`${message} ${specificInstruction}`, true, 4000);
+        };
+
+        window.handleAuth = async (event) => {
+            event.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const isRegister = document.getElementById('auth-mode-register').checked;
+            
+            if (!email || !password) return showMessage('请输入邮箱和密码。', true);
+            try {
+                if (isRegister) {
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    showMessage('注册成功！正在自动登录...', false);
+                } else {
+                    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                    showMessage('登录成功！', false);
+                }
+            } catch (error) {
+                console.error("Auth error:", error);
+                showAuthError(error.code);
+            }
+        };
+
+        window.handleSignOut = async () => {
+             try {
+                await signOut(auth);
+                console.log("User signed out.");
+            } catch (error) {
+                console.error("Sign out error:", error);
+                showMessage("退出登录失败。", true);
+            }
+        };
+
+        if (isConfigValid) {
+            onAuthStateChanged(auth, async (user) => {
+                isAuthReady = true;
+                
+                if (user) {
+                    toggleModal('auth-modal', false); 
+                    const currentUid = user.uid; 
+                    userId = currentUid; 
+                    const profileRef = getProfileDoc(currentUid); 
+                    
+                    let docSnap;
+                    try {
+                        docSnap = await getDoc(profileRef);
+                    } catch (e) {
+                         console.error("Critical: Failed to fetch profile doc for initialization:", e);
+                         showMessage("无法初始化用户数据。请检查您的 Firestore 安全规则。", true, 6000);
+                         return; 
+                    }
+                    
+                    const defaultProfile = { 
+                        femaleName: '', 
+                        maleName: '', 
+                        appTitle: '情侣追踪系统'
+                    };
+                    if (!docSnap.exists()) {
+                        await setDoc(profileRef, { ...defaultProfile, createdAt: serverTimestamp() }).catch(e => {
+                            console.error("Error setting initial profile:", e);
+                            showMessage("初始化用户数据失败，请检查 Firestore 权限。", true);
+                         });
+                        currentProfile = defaultProfile;
+                    } else {
+                        currentProfile = { ...defaultProfile, ...docSnap.data() };
+                    }
+                    
+                    setupDataListeners(currentUid);
+                } else {
+                    userId = null;
+                    renderApp(); 
+                    if (isAuthReady) {
+                        toggleModal('auth-modal', true);
+                    }
+                }
+            });
+        }
+
+        const initializeAuth = async () => {
+            // 我们依赖 onAuthStateChanged 来驱动登录状态。
+            // 使用自定义Token（如果环境提供）
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                 const { signInWithCustomToken } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+                 await signInWithCustomToken(auth, __initial_auth_token);
+            }
+        };
+
+        function setupDataListeners(uid) {
+            if (!uid || !db) return;
+            // 1. Reasons Listener
+            const qReasons = query(getReasonsCollection(uid), orderBy('createdAt', 'asc'));
+            onSnapshot(qReasons, (snapshot) => {
+                currentReasons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderApp(); 
+            });
+            // 2. Events Listener
+            const qEvents = query(getEventsCollection(uid));
+            onSnapshot(qEvents, (snapshot) => {
+                let fetchedEvents = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        ...data,
+                        date: data.date ? data.date.toDate() : new Date(),
+                        createdAt: data.createdAt ? data.createdAt.toDate() : new Date(0), 
+                    };
+                });
+                fetchedEvents.sort((a, b) => {
+                    if (a.date.getTime() !== b.date.getTime()) return a.date.getTime() - b.date.getTime();
+                    return a.createdAt.getTime() - b.createdAt.getTime();
+                });
+                currentEvents = fetchedEvents; 
+                renderApp(); 
+            });
+            // 3. Profile Listener
+            const profileRef = getProfileDoc(uid);
+            onSnapshot(profileRef, (docSnap) => {
+                const defaultProfile = { 
+                    femaleName: '', 
+                    maleName: '', 
+                    appTitle: '情侣追踪系统'
+                };
+                if (docSnap.exists()) {
+                    currentProfile = { ...defaultProfile, ...docSnap.data() };
+                } else {
+                    currentProfile = defaultProfile;
+                }
+                renderApp();
+            });
+            // 4. Tracking Items Listener
+            const qItems = query(getItemsCollection(uid), orderBy('createdAt', 'asc'));
+            onSnapshot(qItems, async (snapshot) => {
+                const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                if (items.length === 0) {
+                    try {
+                        const defaultItemName = "奶茶"; 
+                        await addDoc(getItemsCollection(uid), {
+                            name: defaultItemName,
+                            itemUnit: '',
+                            showUnit: false,
+                            decimalPlaces: 0,
+                            createdAt: serverTimestamp()
+                        });
+                    } catch (e) {
+                         console.error("Error creating default item:", e);
+                    }
+                } else {
+                    trackingItems = items;
+                    if (!activeItemId || !trackingItems.find(i => i.id === activeItemId)) {
+                        activeItemId = trackingItems[0].id;
+                    }
+                    renderApp();
+                }
+            });
+        }
+
+        const showMessage = (message, isError = false, duration = 2000, onComplete = null) => {
+            const modal = document.getElementById('custom-modal');
+            const contentWrapper = document.getElementById('modal-content-wrapper');
+            const messageEl = document.getElementById('modal-message');
+
+            messageEl.textContent = message;
+            contentWrapper.classList.remove('scale-95', 'opacity-0'); 
+            contentWrapper.classList.add('scale-100', 'opacity-100');
+            contentWrapper.className = `relative p-6 rounded-2xl shadow-2xl w-full max-w-md bg-white transition duration-300 transform 
+                ${isError ? 'border-l-4 border-red-500' : 'border-l-4 border-accent'} scale-100 opacity-100`; 
+            messageEl.className = `text-lg font-medium ${isError ? 'text-red-700' : 'text-text-dark'}`;
+            modal.classList.remove('hidden');
+            const hideModal = () => {
+                contentWrapper.classList.remove('scale-100', 'opacity-100');
+                contentWrapper.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => { 
+                    modal.classList.add('hidden'); 
+                    if (onComplete) onComplete(); 
+                }, 300);
+            };
+            
+            if (window.modalTimeout) clearTimeout(window.modalTimeout);
+            window.modalTimeout = setTimeout(hideModal, duration); 
+        };
+
+        window.closeModal = () => {
+            const modal = document.getElementById('custom-modal');
+            const contentWrapper = document.getElementById('modal-content-wrapper');
+            if (window.modalTimeout) clearTimeout(window.modalTimeout); 
+            contentWrapper.classList.remove('scale-100', 'opacity-100');
+            contentWrapper.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                contentWrapper.classList.remove('scale-95', 'opacity-0'); 
+                contentWrapper.classList.add('scale-100', 'opacity-100');
+            }, 300);
+        };
+        
+        const customConfirm = (message, onConfirm) => {
+            const modal = document.getElementById('custom-confirm-modal');
+            document.getElementById('confirm-message').textContent = message;
+            modal.classList.remove('hidden');
+            const confirmBtn = document.getElementById('confirm-btn');
+            const cancelBtn = document.getElementById('cancel-btn');
+            
+            confirmBtn.onclick = () => { modal.classList.add('hidden'); onConfirm(true); };
+            cancelBtn.onclick = () => { modal.classList.add('hidden'); onConfirm(false); };
+        };
+        
+        window.handleSaveNames = async (event) => {
+            event.preventDefault();
+            const appTitle = document.getElementById('app-title-input').value.trim(); 
+            const femaleName = document.getElementById('female-name-input').value.trim();
+            const maleName = document.getElementById('male-name-input').value.trim();
+            if (!femaleName || !maleName || !appTitle) return showMessage('请填写完整信息。', true);
+            
+            try {
+                const profileData = { femaleName, maleName, appTitle };
+                await setDoc(getProfileDoc(userId), profileData, { merge: true }); 
+                window.closeNameModal(); 
+                showMessage('设置已更新！'); 
+            } catch (error) { showMessage('保存失败。', true);
+            }
+        };
+
+        window.handleSaveItem = async (event) => {
+            event.preventDefault();
+            const id = document.getElementById('item-id-input').value; 
+            const name = document.getElementById('new-item-name').value.trim();
+            const itemUnit = document.getElementById('new-item-unit').value.trim();
+            const showUnit = document.getElementById('new-show-unit').checked;
+            const decimalPlaces = parseInt(document.getElementById('new-decimal-places').value, 10);
+            
+            if (!name) return showMessage('请填写物品名称。', true);
+            try {
+                const itemData = { name, itemUnit, showUnit, decimalPlaces };
+                if (id) {
+                     await updateDoc(doc(db, getItemsCollection(userId).path, id), itemData);
+                    showMessage(`追踪物品 "${name}" 更新成功！`);
+                } else {
+                    itemData.createdAt = serverTimestamp();
+                    const docRef = await addDoc(getItemsCollection(userId), itemData);
+                    activeItemId = docRef.id;
+                    showMessage(`追踪物品 "${name}" 添加成功！`);
+                }
+                window.closeAddItemModal();
+            } catch (error) {
+                console.error("Error saving item:", error);
+                showMessage('保存物品失败。', true);
+            }
+        };
+
+        window.deleteItem = async (itemId) => {
+            if (trackingItems.length <= 1) {
+                showMessage("至少需要保留一个追踪物品。", true);
+                return;
+            }
+            const itemToDelete = trackingItems.find(i => i.id === itemId);
+            if (!itemToDelete) return;
+
+            customConfirm(`确定要删除追踪物品 "${itemToDelete.name}" 吗？\n删除后，该物品下的所有记录将不可见。`, async (confirmed) => {
+                if (confirmed) {
+                    try {
+                        await deleteDoc(doc(db, getItemsCollection(userId).path, itemId));
+                        if (activeItemId === itemId) {
+                             const remaining = trackingItems.filter(i => i.id !== itemId);
+                            if (remaining.length > 0) {
+                                activeItemId = remaining[0].id;
+                             } else {
+                                activeItemId = null;
+                            }
+                         }
+                        window.closeAddItemModal();
+                        showMessage(`物品 "${itemToDelete.name}" 已删除。`);
+                    } catch (error) {
+                        console.error("Error deleting item:", error);
+                        showMessage("删除失败。", true);
+                    }
+                }
+            });
+        };
+
+        function isItemMatch(docItemId) {
+            if (docItemId) {
+                return docItemId === activeItemId;
+            } else {
+                return trackingItems.length > 0 && activeItemId === trackingItems[0].id;
+            }
+        }
+        
+        function filterEventsByItem(itemId) {
+            const defaultId = trackingItems.length > 0 ? trackingItems[0].id : null;
+            return currentEvents.filter(e => {
+                if (e.itemId) return e.itemId === itemId;
+                return itemId === defaultId;
+            });
+        }
+        
+        function filterReasonsByItem(itemId) {
+            const defaultId = trackingItems.length > 0 ? trackingItems[0].id : null;
+            return currentReasons.filter(r => {
+                if (r.itemId) return r.itemId === itemId;
+                return itemId === defaultId;
+            });
+        }
+
+        window.handleSaveReason = async (event) => {
+            event.preventDefault();
+            const form = event.target;
+            const reasonId = form.reasonId.value; 
+            const name = form.reasonName.value.trim();
+            const maxGold = Math.max(1, parseInt(form.maxGold.value, 10));
+            if (!name || isNaN(maxGold) || maxGold <= 0) return showMessage('无效输入。', true);
+            const filteredReasons = filterReasonsByItem(activeItemId);
+            const isDuplicate = filteredReasons.some(r => r.name === name && r.id !== reasonId);
+            if (isDuplicate) return showMessage('该物品下事由已存在，请勿重复添加。', true);
+            try {
+                const reasonData = { 
+                    name, maxGold, userId, 
+                    itemId: activeItemId
+                };
+                if (reasonId) {
+                    await updateDoc(doc(db, getReasonsCollection(userId).path, reasonId), reasonData);
+                    showMessage(`事由 "${name}" 更新成功！`);
+                } else {
+                    reasonData.createdAt = serverTimestamp();
+                    await addDoc(getReasonsCollection(userId), reasonData);
+                    if (isReturnToEvent) {
+                        showMessage(`事由 "${name}" 添加成功！`, false, 1200, () => {
+                            window.openAddEventModal();
+                        });
+                    } else {
+                        showMessage(`事由 "${name}" 添加成功！`, false, 1200);
+                    }
+                }
+                form.reset();
+                window.closeAddReasonModal(); 
+            } catch (error) { showMessage('保存失败。', true); }
+        };
+
+        window.deleteEvent = (eventId) => {
+            customConfirm('确定要删除此事件记录吗？', async (confirmed) => {
+                if (confirmed) {
+                    try {
+                        await deleteDoc(doc(db, getEventsCollection(userId).path, eventId));
+                        showMessage('事件已删除。');
+                    } catch (error) { showMessage('删除失败。', true); }
+                }
+            });
+        };
+        
+        window.deleteReason = (reasonId, reasonName) => {
+            customConfirm(`确定要删除事由 "${reasonName}" 吗？`, async (confirmed) => {
+                if (confirmed) {
+                    try {
+                        await deleteDoc(doc(db, getReasonsCollection(userId).path, reasonId));
+                        showMessage(`事由 "${reasonName}" 已删除。`);
+                    } catch (error) { showMessage('删除失败。', true); }
+                }
+            });
+        };
+
+        window.handleSaveEvent = async (event) => {
+            event.preventDefault();
+            const form = event.target;
+            const eventId = form.eventId.value; 
+            const description = form.description.value.trim();
+            const reasonId = form.reasonSelect.value;
+            const dateString = form.eventDate.value;
+            if (!description || !reasonId || !dateString) return showMessage('请填写完整。', true);
+
+            try {
+                const filteredReasons = filterReasonsByItem(activeItemId);
+                const selectedReason = filteredReasons.find(r => r.id === reasonId);
+                
+                let selectedDate;
+                if (datePickerInstance && datePickerInstance.selectedDates.length > 0) {
+                    selectedDate = datePickerInstance.selectedDates[0];
+                } else {
+                    selectedDate = new Date(dateString.replace(/-/g, '/') + ' 00:00:00');
+                }
+
+                const filteredEvents = filterEventsByItem(activeItemId);
+                const eventData = { 
+                    reasonId, 
+                    date: selectedDate, 
+                    description, 
+                    reasonName: selectedReason.name,
+                    itemId: activeItemId
+                };
+                if (eventId) {
+                    await updateDoc(doc(db, getEventsCollection(userId).path, eventId), eventData);
+                    showMessage(`事件更新成功！`);
+                } else {
+                    const currentCount = filteredEvents.filter(e => e.reasonId === reasonId).length;
+                    const goldAmount = calculateGoldAmount(currentCount, selectedReason.maxGold);
+                    eventData.goldAmount = goldAmount; 
+                    eventData.userId = userId; 
+                    eventData.createdAt = serverTimestamp();
+                    
+                    await addDoc(getEventsCollection(userId), eventData);
+                    window.triggerConfetti();
+                    const { amount: formattedAmount, unit: itemUnit } = formatGold(goldAmount);
+                    showMessage(`太可恶了！本次竟存入 ${formattedAmount}${itemUnit ? ' ' + itemUnit : ''} 😠`);
+                }
+                form.reset();
+                window.closeAddEventModal();
+            } catch (error) { showMessage('保存失败。', true); }
+        };
+
+        window.toggleReasonGroup = (reasonId) => {
+            const content = document.getElementById(`group-content-${reasonId}`);
+            const arrow = document.getElementById(`arrow-icon-${reasonId}`);
+            
+            if (collapsedReasons.has(reasonId)) {
+                collapsedReasons.delete(reasonId);
+                content.classList.remove('group-content-collapsed');
+                content.classList.add('group-content-expanded');
+                arrow.classList.remove('arrow-rotated');
+            } else {
+                collapsedReasons.add(reasonId);
+                content.classList.remove('group-content-expanded');
+                content.classList.add('group-content-collapsed');
+                arrow.classList.add('arrow-rotated');
+            }
+        };
+
+        window.switchTab = (itemId) => {
+            activeItemId = itemId;
+            isChartVisible = false;
+            renderApp();
+        };
+
+        window.toggleChart = () => {
+            isChartVisible = !isChartVisible;
+            renderApp(); 
+            if (isChartVisible) {
+                setTimeout(() => {
+                    renderChart();
+                }, 100);
+            }
+        };
+
+        window.renderChart = () => {
+            const ctx = document.getElementById('statsChart');
+            if (!ctx) return;
+            
+            // 修正：图表数据应与事件列表保持一致（只显示属于当前有效事由的事件）
+            const validReasons = filterReasonsByItem(activeItemId);
+            const validReasonIds = new Set(validReasons.map(r => r.id));
+            
+            const filteredEvents = filterEventsByItem(activeItemId).filter(e => validReasonIds.has(e.reasonId));
+            filteredEvents.sort((a, b) => a.date - b.date);
+            
+            const dateMap = {};
+            filteredEvents.forEach(e => {
+                const dateStr = e.date.toLocaleDateString('zh-CN');
+                dateMap[dateStr] = (dateMap[dateStr] || 0) + 1;
+            });
+            const labels = Object.keys(dateMap);
+            const dataPoints = Object.values(dateMap);
+            
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+            
+            chartInstance = new Chart(ctx, {
+                type: 'bar', 
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '每日事件次数',
+                        data: dataPoints,
+                        backgroundColor: '#93C5FD', 
+                        borderColor: '#3B82F6',     
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        hoverBackgroundColor: '#60A5FA'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1, font: { family: 'Inter', size: 12 } },
+                            grid: { color: 'rgba(0,0,0,0.05)', borderDash: [4, 4] }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Inter', size: 12 } }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                            padding: 12,
+                            titleFont: { size: 14, family: 'Inter' },
+                            bodyFont: { size: 13, family: 'Inter' },
+                            cornerRadius: 8,
+                            displayColors: false
+                        }
+                    }
+                }
+            });
+        };
+
+        window.openNameModal = () => {
+            const femaleInput = document.getElementById('female-name-input');
+            const maleInput = document.getElementById('male-name-input');
+            const titleInput = document.getElementById('app-title-input'); 
+
+            if (femaleInput && maleInput && titleInput) {
+                femaleInput.value = currentProfile.femaleName || '';
+                maleInput.value = currentProfile.maleName || '';
+                titleInput.value = currentProfile.appTitle || '';
+            }
+            toggleModal('name-edit-modal', true);
+        };
+
+        window.openAddItemModal = () => {
+            document.getElementById('add-item-modal-title').innerText = "✏️ 增加追踪物品";
+            document.getElementById('add-item-form').reset();
+            document.getElementById('item-id-input').value = "";
+            document.getElementById('new-decimal-places').value = '0';
+            const deleteBtn = document.getElementById('delete-item-btn');
+            if (deleteBtn) deleteBtn.classList.add('hidden');
+
+            toggleModal('add-item-modal', true);
+        };
+
+        window.openEditItemModal = (itemId) => {
+            const item = trackingItems.find(i => i.id === itemId);
+            if (!item) return;
+
+            document.getElementById('add-item-modal-title').innerText = "✏️ 修改追踪物品"; 
+            document.getElementById('item-id-input').value = itemId;
+            document.getElementById('new-item-name').value = item.name;
+            document.getElementById('new-item-unit').value = item.itemUnit || '';
+            document.getElementById('new-show-unit').checked = item.showUnit !== false;
+            document.getElementById('new-decimal-places').value = item.decimalPlaces !== undefined ? item.decimalPlaces : 0;
+            const deleteBtn = document.getElementById('delete-item-btn');
+            if (deleteBtn) {
+                deleteBtn.classList.remove('hidden');
+                deleteBtn.onclick = () => deleteItem(itemId);
+            }
+
+            toggleModal('add-item-modal', true);
+        };
+
+        window.openAddEventModal = (eventId = null) => {
+            const activeItem = getActiveItem();
+            const activeItemUnitRaw = activeItem.itemUnit || '';
+            const showUnit = activeItem.showUnit !== false;
+            
+            const filteredReasons = filterReasonsByItem(activeItemId);
+            if (!eventId && filteredReasons.length === 0) {
+                showMessage(`🥺 还没有任何事由！请先去添加一个吧...`, false, 1200, () => {
+                    isReturnToEvent = true; 
+                    window.openAddReasonModal(); 
+                });
+                return;
+            }
+            
+            const selectEl = document.getElementById('reason-select');
+            selectEl.innerHTML = '<option value="" disabled selected>-- 请选择一个事由 --</option>';
+            filteredReasons.forEach(r => {
+                selectEl.innerHTML += `<option value="${r.id}">${r.name} (单次上限: ${r.maxGold}${activeItemUnitRaw})</option>`;
+            });
+            if(datePickerInstance) datePickerInstance.destroy();
+            datePickerInstance = flatpickr("#event-date-input", {
+                locale: "zh",
+                dateFormat: "Y-m-d",
+                defaultDate: "today",
+                disableMobile: "true", 
+                theme: "light",
+                static: true
+            });
+
+            if (eventId) {
+                const event = currentEvents.find(e => e.id === eventId);
+                if (!event) { showMessage('事件未找到。', true); return; }
+        
+                document.getElementById('event-modal-title').textContent = `✍️ 修改事件`;
+                document.getElementById('event-submit-btn').textContent = '保存修改';
+                document.getElementById('event-id-input').value = eventId;
+                document.getElementById('description-input').value = event.description;
+                selectEl.value = event.reasonId; 
+                datePickerInstance.setDate(event.date);
+                
+                const { amount: formattedAmount, unit: unitDisplayValue } = formatGold(event.goldAmount);
+                document.getElementById('edit-reason-name-display').textContent = event.reasonName;
+                document.getElementById('edit-gold-amount-display').textContent = formattedAmount;
+                document.getElementById('edit-gold-unit-display').textContent = unitDisplayValue;
+                
+                document.getElementById('event-edit-display').classList.remove('hidden');
+            } else {
+                document.getElementById('event-modal-title').textContent = '✍️ 记录新的事件';
+                document.getElementById('event-submit-btn').textContent = '添加事件'; 
+                document.getElementById('add-event-form').reset();
+                document.getElementById('event-id-input').value = ''; 
+                
+                document.getElementById('event-edit-display').classList.add('hidden');
+                datePickerInstance.setDate(new Date());
+            }
+            
+            toggleModal('add-event-modal', true);
+        };
+
+        window.openEditEventModal = (eventId) => window.openAddEventModal(eventId);
+
+        window.openAddReasonModal = () => {
+            const activeItem = getActiveItem();
+            const activeItemUnitRaw = activeItem.itemUnit || '';
+            const showUnit = activeItem.showUnit !== false;
+            
+            const unitDisplay = showUnit && activeItemUnitRaw ? ` (${activeItemUnitRaw})` : '';
+            
+            document.getElementById('reason-modal-title').textContent = '➕ 增加事由'; 
+            document.getElementById('reason-id-input').value = '';
+            document.getElementById('add-reason-form').reset();
+            document.getElementById('max-gold-label').innerHTML = `单次上限${unitDisplay}`;
+
+            toggleModal('add-reason-modal', true);
+        };
+
+        window.openEditReasonModal = (reasonId) => {
+            const reason = currentReasons.find(r => r.id === reasonId);
+            if (!reason) { showMessage('事由未找到。', true); return; }
+            
+            const activeItem = getActiveItem();
+            const activeItemUnitRaw = activeItem.itemUnit || '';
+            const showUnit = activeItem.showUnit !== false;
+            
+            const unitDisplay = showUnit && activeItemUnitRaw ? ` (${activeItemUnitRaw})` : '';
+
+            document.getElementById('reason-modal-title').textContent = `✏️ 修改事由`; 
+            document.getElementById('reason-id-input').value = reasonId;
+            document.getElementById('new-reason-name').value = reason.name;
+            document.getElementById('new-max-gold').value = reason.maxGold;
+            
+            document.getElementById('max-gold-label').innerHTML = `单次上限${unitDisplay}`;
+            
+            toggleModal('add-reason-modal', true);
+        };
+        
+        window.quickAddReason = () => {
+            window.closeAddEventModal();
+            isReturnToEvent = true;
+            window.openAddReasonModal();
+        };
+
+        function renderDashboard() {
+            const activeItem = getActiveItem();
+            if (!activeItem) return ''; 
+
+            const filteredEvents = filterEventsByItem(activeItemId);
+            const filteredReasons = filterReasonsByItem(activeItemId);
+
+            const itemName = activeItem.name || '物品';
+            
+            let totalGold = 0;
+            const reasonCounts = {};
+            const reasonMap = {};
+            // Updated logic to show empty reasons
+            const groupedEvents = {};
+            filteredReasons.forEach(r => {
+                reasonMap[r.id] = r;
+                reasonCounts[r.id] = { id: r.id, count: 0, totalGold: 0, name: r.name, maxGold: r.maxGold };
+                groupedEvents[r.id] = { reason: r, events: [] }; // Initialize with empty events
+            });
+            
+            // Populate events into groups
+            const recalculatedEvents = [];
+            
+            // Sort events by date for correct gold calculation order
+            // Note: We need to calculate gold based on the full list of events for a reason to be accurate over time
+            // So we first group ALL events for the active item by reason
+            const eventsByReason = {};
+            filteredReasons.forEach(r => eventsByReason[r.id] = []);
+            filteredEvents.forEach(e => {
+                if (eventsByReason[e.reasonId]) {
+                    eventsByReason[e.reasonId].push(e);
+                }
+            });
+
+            // Calculate gold and populate groupedEvents
+            Object.keys(eventsByReason).forEach(reasonId => {
+                const events = eventsByReason[reasonId];
+                const reason = reasonMap[reasonId];
+                if (!reason) return; 
+                
+                // Sort by creation time to ensure stable sequence for gold calculation
+                events.sort((a, b) => a.createdAt - b.createdAt);
+
+                events.forEach((e, index) => {
+                    const calculatedGold = calculateGoldAmount(index, reason.maxGold);
+                    e.goldAmount = calculatedGold; 
+                    e.sequenceIndex = index + 1;
+                    recalculatedEvents.push(e);
+                    
+                    if (reasonCounts[reasonId]) {
+                        totalGold += calculatedGold;
+                        reasonCounts[reasonId].count++;
+                        reasonCounts[reasonId].totalGold += calculatedGold;
+                    }
+                    
+                    // Add to the group for display
+                    if(groupedEvents[reasonId]) {
+                        groupedEvents[reasonId].events.push(e);
+                    }
+                });
+            });
+            
+            // Global list of recalculated events for summary stats, sorted by date desc for display if needed
+            recalculatedEvents.sort((a, b) => {
+                if (a.date.getTime() !== b.date.getTime()) return b.date.getTime() - a.date.getTime();
+                return b.createdAt.getTime() - a.createdAt.getTime();
+            });
+            
+            const { amount: formattedTotal, unit: totalUnit } = formatGold(totalGold);
+            
+            const summaryHtml = `
+                <div class="p-6 sm:p-8 bg-card-bg rounded-3xl shadow-lg border border-gray-100 gold-shadow mb-8 relative z-10 overflow-hidden">
+                     <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-yellow-300 via-accent to-yellow-300"></div>
+                     <div class="flex flex-col sm:flex-row items-center justify-between gap-6">
+                        <div class="text-center sm:text-left flex-1 min-w-0">
+                            <p class="text-lg font-bold text-gray-400 uppercase tracking-widest mb-2">🎉 累计${itemName}总量</p>
+                            <div class="flex items-baseline justify-center sm:justify-start flex-wrap">
+                                <h1 id="total-gold-display" class="text-6xl sm:text-7xl font-extrabold text-text-dark leading-none tracking-tight mr-3 drop-shadow-sm">${formattedTotal}</h1>
+                                <span class="text-3xl font-bold text-accent">${totalUnit}</span>
+                            </div>
+                        </div>
+                        <div class="flex space-x-4 sm:space-x-6 shrink-0">
+                            <button onclick="toggleChart()" class="flex flex-col items-center justify-center p-4 bg-primary-bg rounded-2xl border border-gray-100 min-w-[130px] hover:bg-yellow-50 hover:border-yellow-200 transition-all duration-300 active:scale-95 group relative shadow-sm hover:shadow-md">
+                                <p class="text-3xl font-extrabold text-text-dark group-hover:text-accent-dark transition leading-tight mb-1">${recalculatedEvents.length}</p>
+                                <div class="flex items-center space-x-1.5">
+                                    <p class="text-sm font-semibold text-gray-500 group-hover:text-text-dark transition">事件统计</p>
+                                    <span class="text-[10px] text-gray-400 transform transition-transform duration-300 ${isChartVisible ? 'rotate-180' : ''}">▼</span>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="chart-container" class="transition-all duration-300 overflow-hidden ${isChartVisible ? 'mt-6 h-72 opacity-100' : 'h-0 opacity-0'}">
+                        <div class="bg-white p-3 rounded-2xl h-full w-full border border-gray-100 shadow-inner">
+                             <canvas id="statsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Sort groups by name
+            const sortedGroups = Object.values(groupedEvents).sort((a, b) => a.reason.name.localeCompare(b.reason.name, 'zh-CN'));
+            
+            const groupedListHtml = sortedGroups.map(group => {
+                const reasonId = group.reason.id;
+                const reasonStats = reasonCounts[reasonId] || { count: 0, totalGold: 0 };
+                const isCollapsed = collapsedReasons.has(reasonId);
+                const contentClass = isCollapsed ? 'group-content-collapsed' : 'group-content-expanded';
+                const arrowClass = isCollapsed ? 'arrow-rotated' : '';
+                
+                // Sort events inside group by date desc
+                const displayEvents = [...group.events]; 
+                displayEvents.sort((a, b) => {
+                     if (a.date.getTime() !== b.date.getTime()) return b.date.getTime() - a.date.getTime();
+                     return b.sequenceIndex - a.sequenceIndex; // or however you want to tie-break
+                });
+
+                const eventCardsHtml = displayEvents.map(e => {
+                    const dateFormatted = e.date.toLocaleDateString('zh-CN', { year: '2-digit', month: '2-digit', day: '2-digit' }).replace(/\//g, '/');
+                    const { amount: formattedEventAmount, unit: eventUnit } = formatGold(e.goldAmount);
+
+                    return `
+                        <div class="p-5 mb-3 bg-white rounded-xl border-l-[6px] border-gray-200 shadow-sm hover:shadow-md transition duration-200 group">
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                <div class="flex-1 min-w-0 pr-2 w-full"> 
+                                    <div class="flex items-center space-x-3 mb-2">
+                                        <span class="text-sm font-black text-black bg-[#FFD700] px-3 py-1 rounded-lg tracking-tight shadow-sm">#${e.sequenceIndex}</span>
+                                        <p class="text-xl font-extrabold text-text-dark tracking-tight">${dateFormatted}</p>
+                                    </div>
+                                    <p class="text-base text-gray-700 leading-relaxed break-words font-medium opacity-90">${e.description}</p>
+                                </div>
+                                
+                                <div class="flex-shrink-0 flex flex-col items-center justify-center gap-1 pl-4 border-l border-gray-100 w-24">
+                                    <div class="text-right whitespace-nowrap w-full">
+                                        <span class="text-2xl font-bold text-accent drop-shadow-sm">${formattedEventAmount}</span><span class="unit-g">${eventUnit}</span>
+                                    </div>
+                                    <div class="flex items-center justify-center w-full space-x-2 h-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                        <button onclick="openEditEventModal('${e.id}')" class="p-2 rounded-lg bg-gray-50 hover:bg-blue-100 text-gray-400 hover:text-ai-blue transition shadow-sm" title="编辑">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                        </button>
+                                        <button onclick="deleteEvent('${e.id}')" class="p-2 rounded-lg bg-gray-50 hover:bg-red-100 text-gray-400 hover:text-red-500 transition shadow-sm" title="删除">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                const { amount: formattedGroupTotal, unit: groupUnit } = formatGold(reasonStats.totalGold);
+                return `
+                    <div class="bg-card-bg rounded-2xl shadow-md mb-6 overflow-hidden border border-gray-100">
+                        <div onclick="toggleReasonGroup('${reasonId}')"
+                            class="w-full p-5 flex justify-between items-center bg-gray-50 border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition select-none group">
+                            
+                            <div class="flex items-center gap-3 overflow-hidden flex-1">
+                                <span id="arrow-icon-${reasonId}" class="text-xl font-bold text-gray-500 group-hover:text-text-dark arrow-icon ${arrowClass}">&#9660;</span>
+                                <span class="text-2xl font-bold text-text-dark tracking-tight truncate">${group.reason.name}</span>
+                            </div>
+
+                            <div class="flex items-center space-x-3">
+                                <div class="hidden sm:flex items-baseline space-x-3 mr-4">
+                                    <span class="text-sm text-gray-500 font-medium">次数: ${reasonStats.count}</span>
+                                    <span class="text-sm text-gray-500 font-medium">合计: ${formattedGroupTotal}${groupUnit}</span>
+                                </div>
+                                <div class="flex items-center space-x-1 pl-2 border-l border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                     <button onclick="event.stopPropagation(); openEditReasonModal('${reasonId}')" class="p-2 rounded-lg bg-gray-50 hover:bg-blue-100 text-gray-400 hover:text-ai-blue transition shadow-sm" title="编辑事由">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                     </button>
+                                     <button onclick="event.stopPropagation(); deleteReason('${reasonId}', '${group.reason.name}')" class="p-2 rounded-lg bg-gray-50 hover:bg-red-100 text-gray-400 hover:text-red-500 transition shadow-sm" title="删除事由">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                     </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="group-content-${reasonId}" class="${contentClass} bg-primary-bg">
+                            ${displayEvents.length > 0 ? eventCardsHtml : '<div class="text-center p-8 bg-white rounded-xl border border-dashed border-gray-300"><p class="text-base text-gray-500 font-medium mb-4">还没有记录哦，点击新增事件开始记本本吧！</p></div>'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            const listHeaderHtml = `
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-text-dark tracking-tight">事件历史</h2>
+                    <div class="flex w-full sm:w-auto space-x-3">
+                        <button onclick="openAddReasonModal()"
+                            class="flex-1 sm:flex-none px-6 py-3.5 bg-white text-text-dark font-bold rounded-xl shadow-md border border-gray-200 hover:shadow-lg hover:border-accent hover:text-accent-dark transition duration-300 transform hover:scale-[1.02] active:scale-95 flex items-center justify-center space-x-2 text-lg">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                            <span>增加事由</span>
+                        </button>
+                        <button onclick="openAddEventModal()"
+                            class="flex-1 sm:flex-none px-6 py-3.5 bg-accent text-text-dark font-extrabold rounded-xl shadow-lg shadow-yellow-200 hover:shadow-xl hover:bg-accent-dark transition duration-300 transform hover:scale-[1.02] active:scale-95 flex items-center justify-center space-x-2 text-lg">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path></svg>
+                            <span>记录新事件</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+            return `
+                <div class="space-y-8 animate-fade-in-up">
+                    ${summaryHtml}
+                    ${listHeaderHtml}
+                    <div class="max-h-[75vh] overflow-y-auto custom-scrollbar pr-1 pb-20">
+                        ${recalculatedEvents.length === 0 && sortedGroups.length === 0 ? `<div class="text-center p-12 bg-white rounded-3xl border-2 border-dashed border-gray-200"><p class="text-base text-gray-500 font-medium mb-4">还没有记录哦，点击新增事件开始记本本吧！</p></div>` : groupedListHtml}
+                    </div>
+                </div>
+                
+                <!-- Fixed AI Button -->
+                <button onclick="getGlobalGeminiInsight()" class="fixed bottom-6 right-6 z-50 bg-white text-ai-blue px-5 py-3 rounded-full shadow-lg border border-blue-100 hover:shadow-xl hover:scale-105 transition flex items-center space-x-2 font-bold group">
+                   <svg class="w-5 h-5 text-ai-blue group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                   <span>AI报告</span>
+                </button>
+            `;
+        }
+
+        function renderApp() {
+            const appDiv = document.getElementById('app');
+            if (!isAuthReady || !userId) { 
+                if (isLoggingIn) {
+                     appDiv.innerHTML = `
+                        <div class="max-w-xl mx-auto p-10 text-center mt-32">
+                            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-accent mx-auto mb-8"></div>
+                            <h2 class="text-2xl font-bold text-text-dark animate-pulse tracking-wide">正在同步情侣数据...</h2>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                appDiv.innerHTML = `
+                    <div class="max-w-md mx-auto p-10 text-center bg-card-bg rounded-3xl shadow-2xl mt-32 border border-gray-100">
+                        <div class="mb-6 bg-yellow-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto text-accent">
+                             <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8a1 1 0 011-1h-2a1 1 0 011-1z"></path></svg>
+                        </div>
+                        <h2 class="text-3xl font-extrabold text-text-dark mb-4 tracking-tight">情侣追踪系统</h2>
+                        <p class="text-text-secondary text-lg mb-8 leading-relaxed">记录每一次“惹你生气”的瞬间，<br>转化为爱的珍藏。</p>
+                        <button onclick="toggleModal('auth-modal', true)" class="w-full px-6 py-4 bg-accent text-text-dark font-extrabold text-xl rounded-2xl shadow-lg hover:bg-accent-dark transition duration-300 transform hover:scale-[1.02]">
+                            立即登录 / 注册
+                        </button>
+                    </div>
+                `;
+                return; 
+            }
+
+            const femaleName = currentProfile.femaleName || '';
+            const maleName = currentProfile.maleName || '';
+            const appTitle = currentProfile.appTitle || '情侣追踪系统';
+            const areNamesEmpty = (femaleName.trim() === '' && maleName.trim() === '');
+            let tabsHtml = '';
+            if (trackingItems.length > 0) {
+                tabsHtml = trackingItems.map(item => {
+                    const isActive = item.id === activeItemId;
+                    return `
+                        <button onclick="switchTab('${item.id}')" 
+                            class="group min-w-[140px] px-5 py-3.5 rounded-xl text-xl tab-btn ${isActive ? 'tab-active' : 'tab-inactive'}">
+                            ${item.name}
+                            <div onclick="event.stopPropagation(); openEditItemModal('${item.id}')"
+                                class="absolute top-1 right-1 p-1.5 rounded-full bg-white hover:bg-blue-50 text-gray-300 hover:text-ai-blue shadow-sm opacity-0 group-hover:opacity-100 transition-all cursor-pointer z-10" title="编辑/删除">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            </div>
+                        </button>
+                    `;
+                }).join('');
+            }
+            tabsHtml += `
+                <button onclick="openAddItemModal()" class="px-4 py-3.5 bg-white rounded-xl border border-dashed border-gray-300 text-gray-400 hover:text-accent hover:border-accent hover:bg-yellow-50 transition shadow-sm ml-2 flex-shrink-0" title="增加追踪物品">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                </button>
+            `;
+            
+            appDiv.innerHTML = `
+                <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
+                    <header class="bg-card-bg rounded-[2rem] p-8 mb-8 relative text-text-dark shadow-lg border border-gray-100">
+                        <div class="text-center relative">
+                            <h1 class="text-3xl sm:text-4xl font-black mb-3 tracking-tight text-text-dark">${appTitle}</h1>
+                            
+                            ${areNamesEmpty ? `<p class="text-sm text-gray-400 font-bold mb-4 cursor-pointer hover:text-yellow-400 transition duration-300" onclick="openNameModal()">点击此处完善情侣信息</p>` : ''}
+
+                            ${!areNamesEmpty ?
+                                `<div class="flex items-center justify-center gap-3 opacity-90 mt-2">
+                                    <div class="h-px w-6 sm:w-12 bg-gray-200"></div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-lg sm:text-xl font-bold text-gray-700 tracking-wider font-sans">${femaleName}</span>
+                                        <div class="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-700 font-serif italic text-xl shadow-sm font-bold">&</div>
+                                        <span class="text-lg sm:text-xl font-bold text-gray-700 tracking-wider font-sans">${maleName}</span>
+                                    </div>
+                                    <div class="h-px w-6 sm:w-12 bg-gray-200"></div>
+                                </div>` 
+                            : ''}
+
+                            <button onclick="openNameModal()" class="absolute top-0 right-0 p-3 rounded-full hover:bg-gray-100 transition duration-200 group z-10" title="设置">
+                                <svg class="w-6 h-6 text-gray-400 group-hover:text-text-dark transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                </svg>
+                            </button>
+
+                            <button onclick="handleSignOut()" class="absolute top-0 left-0 text-base text-gray-400 font-bold px-3 py-2 hover:bg-gray-100 hover:text-gray-700 rounded-xl transition duration-200 z-10 flex items-center" title="退出登录">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                                </svg>
+                                退出
+                            </button>
+                        </div>
+                    </header>
+                    
+                    <div class="items-tab-container mb-8 overflow-x-auto pb-4 custom-scrollbar">
+                        ${tabsHtml}
+                    </div>
+
+                    <div class="mt-4">
+                        ${renderDashboard()}
+                    </div>
+                </div>
+            `;
+            const totalDisplay = document.getElementById("total-gold-display");
+            if (totalDisplay) {
+                if (isChartVisible) {
+                    setTimeout(renderChart, 50);
+                }
+            }
+        }
+
+        if (isConfigValid) {
+            initializeAuth();
+        }
+
+    </script>
+</head>
+<body class="bg-primary-bg text-text-dark font-sans min-h-screen">
+
+    <div id="app" class="pt-6"></div>
+    
+    <!-- Auth Modal -->
+    <div id="auth-modal" 
+        class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4 modal-hidden">
+        <div class="bg-card-bg p-8 sm:p-10 rounded-3xl shadow-2xl w-full max-w-md mx-auto transform transition-all border border-gray-100">
+            <h3 class="text-3xl font-extrabold text-text-dark text-center mb-8">🔒 账号登录</h3>
+            <form onsubmit="handleAuth(event)" class="space-y-6">
+                <div>
+                    <label for="auth-email" class="block text-base font-bold text-text-dark mb-2">邮箱</label>
+                    <input type="email" id="auth-email" placeholder="example@couple.com" required 
+                        class="w-full px-5 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent focus:border-accent text-lg shadow-sm transition-all outline-none bg-gray-50 focus:bg-white">
+                </div>
+                <div>
+                    <label for="auth-password" class="block text-base font-bold text-text-dark mb-2">密码</label>
+                    <div class="relative">
+                        <input type="password" id="auth-password" placeholder="至少6位字符" required 
+                            class="w-full px-5 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent focus:border-accent text-lg shadow-sm transition-all outline-none bg-gray-50 focus:bg-white pr-12">
+                        <button type="button" onclick="togglePassword('auth-password')" class="absolute inset-y-0 right-0 flex items-center px-4 text-gray-400 hover:text-accent-dark focus:outline-none transition-colors duration-200">
+                            <svg id="auth-password-icon" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="pt-2">
+                    <div class="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <label class="flex items-center space-x-3 cursor-pointer p-1">
+                            <input type="radio" name="auth-mode" id="auth-mode-login" value="login" checked class="form-radio text-accent-dark h-5 w-5 focus:ring-accent">
+                            <span class="text-base font-semibold text-text-dark">登录</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer p-1">
+                            <input type="radio" name="auth-mode" id="auth-mode-register" value="register" class="form-radio text-accent-dark h-5 w-5 focus:ring-accent">
+                            <span class="text-base font-semibold text-text-dark">注册</span>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit"
+                    class="w-full px-6 py-4 bg-accent text-text-dark font-extrabold text-xl rounded-xl shadow-lg hover:shadow-xl hover:bg-accent-dark transition duration-300 transform hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent mt-4">
+                    开始使用
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Name Modal -->
+    <div id="name-edit-modal" class="fixed inset-0 modal-overlay z-40 flex items-center justify-center p-4 modal-hidden" onclick="if(event.target.id === 'name-edit-modal') closeNameModal()">
+        <div class="bg-card-bg p-8 rounded-3xl shadow-2xl w-full max-w-xl mx-auto transform transition-all border border-gray-100">
+            <div class="flex justify-between items-center border-b border-gray-100 pb-4 mb-6">
+                <h3 class="text-2xl font-bold text-text-dark flex items-center">
+                    <span class="bg-gray-100 p-2 rounded-lg mr-2">⚙️</span>
+                    应用设置
+                </h3>
+                <button onclick="closeNameModal()" class="text-gray-400 hover:text-gray-800 text-3xl leading-none">&times;</button>
+            </div>
+            <form onsubmit="handleSaveNames(event)" class="space-y-6">
+                <div>
+                    <label class="block text-lg font-bold text-text-dark mb-2">应用标题</label>
+                    <input type="text" id="app-title-input" required maxlength="20" class="w-full px-5 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent focus:border-accent text-2xl font-bold bg-gray-50 focus:bg-white transition-all">
+                </div>
+                
+                <div class="space-y-5 pt-4">
+                    <div class="grid grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-lg font-bold text-text-dark mb-2">女主名字</label>
+                            <input type="text" id="female-name-input" required maxlength="20" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent text-xl font-semibold bg-gray-50 focus:bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-lg font-bold text-text-dark mb-2">男主名字</label>
+                            <input type="text" id="male-name-input" required maxlength="20" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent text-xl font-semibold bg-gray-50 focus:bg-white">
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="w-full px-6 py-4 bg-accent text-text-dark font-extrabold text-xl rounded-xl shadow-md hover:bg-accent-dark hover:shadow-lg transition-all transform hover:scale-[1.01]">保存设置</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- ADD/EDIT ITEM MODAL -->
+    <div id="add-item-modal" class="fixed inset-0 modal-overlay z-40 flex items-center justify-center p-4 modal-hidden" onclick="if(event.target.id === 'add-item-modal') closeAddItemModal()">
+        <div class="bg-card-bg p-8 rounded-3xl shadow-2xl w-full max-w-xl mx-auto transform transition-all border border-gray-100">
+            <div class="flex justify-between items-center border-b border-gray-100 pb-4 mb-6">
+                <h3 id="add-item-modal-title" class="text-2xl font-bold text-text-dark">✏️ 增加追踪物品</h3>
+                <button onclick="closeAddItemModal()" class="text-gray-400 hover:text-gray-800 text-3xl leading-none">&times;</button>
+            </div>
+            <form id="add-item-form" onsubmit="handleSaveItem(event)" class="space-y-6">
+                <input type="hidden" id="item-id-input"> 
+                
+                <div>
+                    <label class="block text-base font-bold text-text-dark mb-2">物品名称 <span class="text-sm font-normal text-gray-400">(如: 奶茶, 钻石)</span></label>
+                    <input type="text" id="new-item-name" required maxlength="20" class="w-full px-5 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent focus:border-accent text-lg bg-gray-50 focus:bg-white transition-all">
+                </div>
+
+                <div class="grid grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-base font-bold text-text-dark mb-2">单位 <span class="text-sm font-normal text-gray-400">(如: 杯)</span></label>
+                        <input type="text" id="new-item-unit" value="" maxlength="20" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent text-base">
+                    </div>
+                    
+                    <div>
+                        <label for="new-decimal-places" class="block text-base font-bold text-text-dark mb-2">数值精度</label>
+                        <select id="new-decimal-places" class="w-full px-5 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-accent text-lg h-[50px]">
+                            <option value="0">0 (整数)</option>
+                            <option value="1">1位小数 (0.1)</option>
+                            <option value="2">2位小数 (0.01)</option>
+                            <option value="3">3位小数 (0.001)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex items-center pt-2 px-2"> 
+                    <input type="checkbox" id="new-show-unit" class="form-checkbox h-6 w-6 text-accent rounded focus:ring-accent border-gray-300 transition cursor-pointer">
+                    <label for="new-show-unit" class="text-base font-bold text-text-dark ml-3 cursor-pointer select-none">显示单位</label>
+                </div>
+                
+                <div class="flex items-center justify-between gap-4 pt-4">
+                    <button type="button" id="delete-item-btn" class="hidden px-6 py-4 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition border border-red-200 text-lg">删除</button>
+                    <button type="submit" class="flex-1 px-6 py-4 bg-accent text-text-dark font-extrabold text-xl rounded-xl shadow-md hover:bg-accent-dark hover:shadow-lg transition-all">保存设置</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Add Event Modal -->
+    <div id="add-event-modal" class="fixed inset-0 modal-overlay z-40 flex items-center justify-center p-4 modal-hidden" onclick="if(event.target.id === 'add-event-modal') closeAddEventModal()">
+        <div class="bg-card-bg p-8 rounded-3xl shadow-2xl w-full max-w-xl mx-auto transform transition-all border border-gray-100">
+            <div class="flex justify-between items-center border-b border-gray-100 pb-4 mb-6">
+                <h3 id="event-modal-title" class="text-2xl font-bold text-text-dark">✍️ 记录新的事件</h3>
+                <button onclick="closeAddEventModal()" class="text-gray-400 hover:text-gray-800 text-3xl leading-none">&times;</button>
+            </div>
+            <form id="add-event-form" onsubmit="handleSaveEvent(event)" class="space-y-6">
+                <input type="hidden" id="event-id-input" name="eventId">
+                <div id="event-edit-display" class="hidden p-5 bg-blue-50 rounded-xl border border-blue-100 text-base space-y-2">
+                    <p class="font-bold text-gray-700">原事由: <span id="edit-reason-name-display" class="text-ai-blue"></span></p>
+                    <p class="font-bold text-gray-700">原存入: <span id="edit-gold-amount-display" class="font-extrabold text-accent text-2xl"></span> <span id="edit-gold-unit-display" class="text-sm font-bold text-gray-500"></span> <span class="text-gray-400 text-sm font-normal ml-2">(编辑后重新计算)</span></p>
+                </div>
+                <div>
+                    <label class="block text-base font-bold text-text-dark mb-2">选择事由</label>
+                    <div class="flex gap-3">
+                        <div class="relative w-full">
+                            <select id="reason-select" name="reasonSelect" required class="appearance-none w-full px-5 py-4 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-accent text-text-dark text-lg font-medium transition-colors">
+                                <option value="" disabled selected>-- 请选择 --</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                        <button type="button" onclick="quickAddReason()" class="px-5 bg-gray-100 text-gray-600 rounded-xl border border-gray-200 hover:bg-white hover:border-accent hover:text-accent font-bold text-2xl shadow-sm transition-all" title="新增事由">+</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-base font-bold text-text-dark mb-2">发生日期</label>
+                    <input type="text" id="event-date-input" name="eventDate" required class="w-full px-5 py-4 border border-gray-200 rounded-xl text-lg focus:ring-2 focus:ring-accent focus:border-accent bg-gray-50 focus:bg-white cursor-pointer font-medium" placeholder="选择日期...">
+                </div>
+                <div>
+                    <label class="block text-base font-bold text-text-dark mb-2">详细描述</label>
+                    <textarea id="description-input" name="description" rows="3" required placeholder="记录下当时的情况..." class="w-full px-5 py-4 border border-gray-200 rounded-xl text-lg resize-none focus:ring-2 focus:ring-accent bg-gray-50 focus:bg-white transition-all"></textarea>
+                </div>
+                <button id="event-submit-btn" type="submit" class="w-full px-6 py-4 bg-accent text-text-dark font-extrabold text-xl rounded-xl shadow-lg hover:bg-accent-dark hover:shadow-xl transition transform hover:scale-[1.01] mt-2">添加事件</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Add Reason Modal -->
+    <div id="add-reason-modal" class="fixed inset-0 modal-overlay z-40 flex items-center justify-center p-4 modal-hidden" onclick="if(event.target.id === 'add-reason-modal') closeAddReasonModal()">
+        <div class="bg-card-bg p-8 rounded-3xl shadow-2xl w-full max-w-xl mx-auto transform transition-all border border-gray-100">
+            <div class="flex justify-between items-center border-b border-gray-100 pb-4 mb-6">
+                <h3 id="reason-modal-title" class="text-2xl font-bold text-text-dark">➕ 增加事由</h3>
+                <button onclick="closeAddReasonModal()" class="text-gray-400 hover:text-gray-800 text-3xl leading-none">&times;</button>
+            </div>
+            <form id="add-reason-form" onsubmit="handleSaveReason(event)" class="space-y-6">
+                <input type="hidden" id="reason-id-input" name="reasonId">
+                <div>
+                    <label class="block text-base font-bold text-text-dark mb-2">事由名称</label>
+                    <input type="text" id="new-reason-name" name="reasonName" placeholder="例如: 迟到、忘记纪念日..." required class="w-full px-5 py-4 border border-gray-200 rounded-xl text-lg focus:ring-2 focus:ring-accent bg-gray-50 focus:bg-white" maxlength="20">
+                </div>
+                <div class="relative">
+                    <label id="max-gold-label" class="block text-base font-bold text-text-dark mb-2">单次上限值</label>
+                    <input type="number" id="new-max-gold" name="maxGold" placeholder="10" value="10" min="1" required class="w-full px-5 py-4 border border-gray-200 rounded-xl text-lg focus:ring-2 focus:ring-accent bg-gray-50 focus:bg-white font-mono">
+                </div>
+                
+                <p class="text-sm font-medium text-gray-500 bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-start">
+                    <span class="mr-2 text-lg">💡</span>
+                    <span class="mt-0.5">机制提示：在连续触发该事由时，存入值会倍增（1, 2, 4, 8...），直到达到您设置的单次上限。</span>
+                </p>
+
+                <button type="submit" class="w-full px-6 py-4 bg-gray-800 text-white font-extrabold text-xl rounded-xl shadow-lg hover:bg-gray-900 transition transform hover:scale-[1.01]">保存事由</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Global Insight Modal -->
+    <div id="global-insight-modal" class="fixed inset-0 modal-overlay z-40 flex items-center justify-center p-4 modal-hidden" onclick="if(event.target.id === 'global-insight-modal') closeGlobalInsightModal()">
+        <div class="bg-card-bg p-0 rounded-3xl shadow-2xl w-full max-w-2xl mx-auto transform transition-all overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 flex justify-between items-center shadow-md z-10">
+                <h3 class="text-2xl font-bold text-white flex items-center gap-2">
+                    <span class="text-3xl">✨</span> 情感与财富洞察报告
+                </h3>
+                <button onclick="closeGlobalInsightModal()" class="text-white hover:text-blue-100 text-3xl leading-none transition opacity-80 hover:opacity-100">&times;</button>
+            </div>
+            <div id="global-insight-content" class="p-8 overflow-y-auto custom-scrollbar flex-grow bg-white min-h-[300px]">
+                <!-- AI Content -->
+            </div>
+            <div class="p-4 bg-gray-50 border-t border-gray-100 text-center text-gray-400 text-xs font-medium">
+                Powered by Google Gemini AI
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Modals -->
+    <div id="custom-modal" class="hidden fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4" onclick="closeModal()">
+        <div id="modal-content-wrapper" class="relative bg-white p-6 rounded-2xl shadow-2xl max-w-md w-full transform transition-all scale-95 opacity-0">
+            <p id="modal-message" class="text-lg font-medium text-text-dark"></p>
+            <button class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-xl font-bold" onclick="closeModal()">×</button>
+        </div>
+    </div>
+    <div id="custom-confirm-modal" class="hidden fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full border border-gray-100">
+            <h4 class="text-xl font-bold text-text-dark mb-4">请确认</h4>
+            <p id="confirm-message" class="text-base text-gray-600 mb-8 leading-relaxed"></p>
+            <div class="flex justify-end space-x-4">
+                <button id="cancel-btn" class="px-5 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">取消</button>
+                <button id="confirm-btn" class="px-5 py-2.5 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 shadow-md hover:shadow-lg transition">确定</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
